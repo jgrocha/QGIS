@@ -51,7 +51,6 @@ RUN  apt-get update \
     libqt5xml5 \
     libqt5serialport5-dev \
     libqwt-qt5-dev \
-    libseccomp2 \
     libspatialindex-dev \
     libspatialite-dev \
     libsqlite3-dev \
@@ -114,6 +113,8 @@ RUN  apt-get update \
     owslib \
     oauthlib \
     pyopenssl \
+  && wget https://launchpad.net/ubuntu/+archive/primary/+files/libseccomp2_2.4.1-0ubuntu0.16.04.2_amd64.deb \
+  && dpkg -i libseccomp2_2.4.1-0ubuntu0.16.04.2_amd64.deb && apt-get install -f \
   && apt-get clean
 
 
