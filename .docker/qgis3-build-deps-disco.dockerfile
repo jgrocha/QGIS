@@ -113,8 +113,6 @@ RUN  apt-get update \
     owslib \
     oauthlib \
     pyopenssl \
-  && wget https://launchpad.net/ubuntu/+archive/primary/+files/libseccomp2_2.4.1-0ubuntu0.16.04.2_amd64.deb \
-  && dpkg -i libseccomp2_2.4.1-0ubuntu0.16.04.2_amd64.deb && apt-get install -f \
   && apt-get clean
 
 
