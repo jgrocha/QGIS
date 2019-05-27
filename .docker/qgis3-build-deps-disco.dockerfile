@@ -51,7 +51,7 @@ RUN  apt-get update \
     libqt5xml5 \
     libqt5serialport5-dev \
     libqwt-qt5-dev \
-    libseccomp \
+    libseccomp2 \
     libspatialindex-dev \
     libspatialite-dev \
     libsqlite3-dev \
