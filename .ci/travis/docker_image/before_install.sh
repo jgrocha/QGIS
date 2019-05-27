@@ -14,5 +14,8 @@
 #                                                                         #
 ###########################################################################
 
+sudo apt-get upgrade libseccomp2
 
-sudo apt-get install -y libseccomp2
+#wget https://launchpad.net/ubuntu/+archive/primary/+files/libseccomp2_2.4.1-0ubuntu0.16.04.2_amd64.deb
+#sudo dpkg -i libseccomp2_2.4.1-0ubuntu0.16.04.2_amd64.deb
+#sudo apt-get install -f
