@@ -15,8 +15,12 @@
 #include <QFile>
 #include <QObject>
 #include "qgstest.h"
+#include "qgssettings.h"
+
 #include <qgswmscapabilities.h>
 #include <qgsapplication.h>
+#include <qgswmsconnection.h>
+#include <qgswmsprovider.h>
 
 /**
  * \ingroup UnitTests
@@ -38,6 +42,49 @@ class TestQgsWmsCapabilities: public QObject
     void cleanupTestCase()
     {
       QgsApplication::exitQgis();
+    }
+
+    void addConnections()
+    {
+      // split the initialization
+      // split in two different tests, one for the filesystem and another for the Postgresql stored project
+
+      QMap<QString, QString> exampleServers;
+      exampleServers[QStringLiteral( "QGIS Server project from file sytem" )] = QStringLiteral( "http://qgis.demo/cgi-bin/qgis_mapserv.fcgi?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities&MAP=/home/qgis/projects/cartageologica.qgz" );
+      exampleServers[QStringLiteral( "QGIS Server project from Postgresql" )] = QStringLiteral( "http://qgis.demo/cgi-bin/qgis_mapserv.fcgi?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities&MAP=postgresql%3A%3Fservice%3Dpg_geotuga%26sslmode%3Ddisable%26dbname%3D%26schema%3Dortos%26project%3Dteste" );
+      QgsSettings settings;
+      settings.beginGroup( QStringLiteral( "qgis/connections-wms" ) );
+
+      QMap<QString, QString>::const_iterator i = exampleServers.constBegin();
+      for ( ; i != exampleServers.constEnd(); ++i )
+      {
+        // Only do a server if it's name doesn't already exist.
+        QStringList keys = settings.childGroups();
+        if ( !keys.contains( i.key() ) )
+        {
+          QString path = i.key();
+          settings.setValue( path + "/url", i.value() );
+        }
+      }
+      settings.endGroup();
+
+      QgsWMSConnection connection1( QStringLiteral( "QGIS Server project from file sytem" ) );
+      QgsWMSConnection connection2( QStringLiteral( "QGIS Server project from Postgresql" ) );
+      QgsDataSourceUri mUri1 = connection1.uri();
+      QgsDataSourceUri mUri2 = connection2.uri();
+
+      QgsWmsSettings wmsSettings1, wmsSettings2;
+      bool parse1 = wmsSettings1.parseUri( mUri1.encodedUri() );
+      bool parse2 = wmsSettings2.parseUri( mUri2.encodedUri() );
+
+      QCOMPARE( parse1, 1 );
+      QCOMPARE( parse2, 1 );
+
+      QCOMPARE( wmsSettings1.baseUrl(), QStringLiteral( "http://qgis.demo/cgi-bin/qgis_mapserv.fcgi?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities&MAP=/home/qgis/projects/cartageologica.qgz&" ) );
+      QCOMPARE( wmsSettings2.baseUrl(), QStringLiteral( "http://qgis.demo/cgi-bin/qgis_mapserv.fcgi?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities&MAP=postgresql%3A%3Fservice%3Dpg_geotuga%26sslmode%3Ddisable%26dbname%3D%26schema%3Dortos%26project%3Dteste&" ) );
+
+      // QgsWmsCapabilitiesDownload capDownload( QgsWmsProvider::prepareUri( mUri2.param( "url" ), false ), wmsSettings2.authorization(), true );
+
     }
 
 
