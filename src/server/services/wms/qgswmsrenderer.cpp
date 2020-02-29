@@ -64,6 +64,7 @@
 #include "qgsserverexception.h"
 #include "qgsexpressioncontextutils.h"
 #include "qgsfeaturestore.h"
+#include "qgsmapthemecollection.h"
 
 #include <QImage>
 #include <QPainter>
@@ -546,7 +547,32 @@ namespace QgsWms
       handlePrintErrors( layout.get() );
     }
 
+    // remove temeporary themes
+    // remove temeporary highlight layers
+    unConfigurePrintLayout( layout.get() );
+
     return tempOutputFile.readAll();
+  }
+
+  void QgsRenderer::unConfigurePrintLayout( QgsPrintLayout *c )
+  {
+    static const QRegularExpression RE_HIGHLIGHT_LAYER = QRegularExpression( "^highlight_\\d+$" );
+
+    // remove themes
+    QStringList allThemes = c->project()->mapThemeCollection()->mapThemes( );
+    for ( auto theme : allThemes )
+    {
+      if ( theme.endsWith( "__highlight" ) )
+        c->project()->mapThemeCollection()->removeMapTheme( theme );
+    }
+
+    // remove highlight layers added
+    QList<QgsLayerTreeLayer *> allLayers = c->project()->layerTreeRoot()->findLayers();
+    for ( auto layerTree : c->project()->layerTreeRoot()->findLayers() )
+    {
+      if ( RE_HIGHLIGHT_LAYER.match( layerTree->layer()->name() ).hasMatch() )
+        c->project()->layerTreeRoot()->removeLayer( layerTree->layer() );
+    }
   }
 
   bool QgsRenderer::configurePrintLayout( QgsPrintLayout *c, const QgsMapSettings &mapSettings, bool atlasPrint )
@@ -600,8 +626,51 @@ namespace QgsWms
         }
       }
 
+      QList<QgsMapLayer *> renderLayers, auxHighlightLayers;
+
       if ( !map->keepLayerSet() )
       {
+        static const QRegularExpression RE_HIGHLIGHT_LAYER = QRegularExpression( "^highlight_\\d+$" );
+
+        QString presetName = map->followVisibilityPresetName();
+        QString newPresetName;
+        if ( !presetName.isEmpty() )
+        {
+          // get layers from theme
+          if ( c->project()->mapThemeCollection()->hasMapTheme( presetName ) )
+            renderLayers = c->project()->mapThemeCollection()->mapThemeVisibleLayers( presetName );
+          else
+            renderLayers = c->project()->mapThemeCollection()->masterVisibleLayers();
+
+          // get highlight layers, if any
+          for ( auto layer : mapSettings.layers() )
+          {
+            if ( RE_HIGHLIGHT_LAYER.match( layer->name() ).hasMatch() )
+            {
+              auxHighlightLayers << layer;
+              c->project()->layerTreeRoot()->insertLayer( 0, layer );
+            }
+          }
+
+          // create a new theme with all layers
+          QgsMapThemeCollection::MapThemeRecord rec;
+          // layers from the theme
+          for ( auto layer : renderLayers )
+          {
+            rec.addLayerRecord( QgsMapThemeCollection::MapThemeLayerRecord( layer ) );
+          }
+          // highlight layers
+          for ( auto layer : auxHighlightLayers )
+          {
+            rec.addLayerRecord( QgsMapThemeCollection::MapThemeLayerRecord( layer ) );
+          }
+
+          // Add the theme and set it
+          newPresetName = presetName + QStringLiteral( "__highlight" );
+          c->project()->mapThemeCollection()->insert( newPresetName, rec );
+          map->setFollowVisibilityPresetName( newPresetName );
+        }
+
         if ( cMapParams.mLayers.isEmpty() && cMapParams.mExternalLayers.isEmpty() )
         {
           map->setLayers( mapSettings.layers() );
@@ -612,18 +681,20 @@ namespace QgsWms
           for ( auto layer : cMapParams.mLayers )
           {
             QgsMapLayer *mlayer = mContext.layer( layer.mNickname );
-
             if ( ! mlayer )
             {
               continue;
             }
-
             setLayerStyle( mlayer, layer.mStyle );
             layerSet << mlayer;
           }
 
+          // not sure about the order
+          layerSet << auxHighlightLayers;
           layerSet << externalLayers( cMapParams.mExternalLayers );
           layerSet << highlightLayers( cMapParams.mHighlightLayers );
+          layerSet << renderLayers;
+
           std::reverse( layerSet.begin(), layerSet.end() );
           map->setLayers( layerSet );
         }
