@@ -5110,12 +5110,13 @@ bool QgsPostgresProviderMetadata::saveStyle( const QString &uri, const QString &
                    ",styleSLD=XMLPARSE(DOCUMENT %13)"
                    ",description=%4"
                    ",owner=%5"
+                   ",type=%2"
                    " WHERE f_table_catalog=%6"
                    " AND f_table_schema=%7"
                    " AND f_table_name=%8"
                    " AND f_geometry_column=%9"
                    " AND styleName=%10"
-                   " AND type=%2" )
+                   " AND (type=%2 OR type IS NULL)" )
           .arg( useAsDefault ? "true" : "false" )
           .arg( wkbTypeString )
           .arg( QgsPostgresConn::quotedValue( styleDescription.isEmpty() ? QDateTime::currentDateTime().toString() : styleDescription ) )
@@ -5262,7 +5263,7 @@ int QgsPostgresProviderMetadata::listStyles( const QString &uri, QStringList &id
                                         " AND f_table_schema=%2"
                                         " AND f_table_name=%3"
                                         " AND f_geometry_column=%4"
-                                        " AND type=%5"
+                                        " AND (type=%5 OR type IS NULL)"
                                         " ORDER BY useasdefault DESC, update_time DESC" )
                                .arg( QgsPostgresConn::quotedValue( dsUri.database() ) )
                                .arg( QgsPostgresConn::quotedValue( dsUri.schema() ) )
